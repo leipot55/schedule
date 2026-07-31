@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Board</title>
+<style>
+  @font-face {
+    font-family: 'Flap';
+    src: local('Courier New');
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    min-height: 100%;
+    background: #0b0a08;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-family: 'Courier New', ui-monospace, monospace;
+  }
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 14px;
+    width: 100%;
+    max-width: 440px;
+  }
+  .widget {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    min-height: 320px;
+    max-height: calc(100svh - 40px);
+    background: linear-gradient(180deg, #1c1a16, #141210);
+    border-radius: 18px;
+    border: 1px solid #35312a;
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .widget::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ffb84d55, transparent);
+  }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .top-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .notify-btn {
+    background: none;
+    border: 1px solid #35312a;
+    color: #ffb84d;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .notify-btn.on { border-color: #ffb84d55; background: #ffb84d14; }
+  .notify-btn:active { transform: scale(0.96); }
+  .day {
+    color: #ffb84d;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 3px;
+  }
+  .date {
+    color: #6b6459;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .divider {
+    height: 1px;
+    background: #35312a;
+  }
+  .status-label {
+    color: #6b6459;
+    font-size: 9px;
+    letter-spacing: 2px;
+  }
+  .flap {
+    background: #0e0d0b;
+    border-radius: 6px;
+    padding: 8px 10px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #2a2620;
+  }
+  .flap::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 0; right: 0;
+    height: 1px;
+    background: #000;
+    opacity: 0.5;
+  }
+  .flap.now { border-color: #ffb84d55; }
+  .code-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .code {
+    color: #ffb84d;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .subject {
+    color: #d8d2c4;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    line-height: 1.35;
+    min-height: 15px;
+    word-break: break-word;
+  }
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #8a8375;
+    letter-spacing: 1px;
+  }
+  .meta-row .room { color: #ffb84d99; }
+  .nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .nav-arrow {
+    background: none;
+    border: 1px solid #35312a;
+    color: #ffb84d;
+    font-size: 14px;
+    width: 30px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .nav-arrow:active { transform: scale(0.94); }
+  .day-picker {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+  }
+  .day-pill {
+    background: none;
+    border: 1px solid #2a2620;
+    color: #6b6459;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding: 5px 0;
+    border-radius: 5px;
+    cursor: pointer;
+    flex: 1;
+    max-width: 34px;
+  }
+  .day-pill.active { color: #0b0a08; background: #ffb84d; border-color: #ffb84d; font-weight: bold; }
+  .day-pill.is-today:not(.active) { color: #ffb84d; border-color: #ffb84d55; }
+  .today-btn {
+    background: none;
+    border: none;
+    color: #4a463e;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+    align-self: center;
+  }
+  .next-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .next-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #7a7367;
+    padding: 8px 6px;
+    border-bottom: 1px dashed #2a2620;
+    border-radius: 4px;
+  }
+  .next-item:last-child { border-bottom: none; }
+  .next-item .t { color: #6b6459; width: 66px; flex-shrink: 0; }
+  .next-item .c { color: #8a8375; width: 58px; flex-shrink: 0; }
+  .next-item .s { color: #6b6459; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .next-item .r { color: #55503f; width: 54px; flex-shrink: 0; text-align: right; font-size: 10px; }
+  .next-item.is-now { background: #ffb84d14; border-bottom: 1px dashed #ffb84d33; }
+  .next-item.is-now .t { color: #ffb84d; }
+  .next-item.is-now .c { color: #ffb84d; }
+  .next-item.is-now .s { color: #d8d2c4; }
+  .next-item.is-done { opacity: 0.45; }
+  .next-item.is-done .s { text-decoration: line-through; }
+  @media (max-width: 380px) {
+    .stage { padding: 12px 8px; }
+    .widget { padding: 14px 12px; max-height: calc(100svh - 24px); }
+    .day { font-size: 13px; letter-spacing: 2px; }
+    .code { font-size: 19px; }
+    .subject { font-size: 11px; }
+    .next-item { font-size: 11px; }
+    .next-item .t { width: 56px; }
+    .next-item .c { width: 50px; }
+    .next-item .r { display: none; }
+  }
+  .empty-msg {
+    color: #6b6459;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-align: center;
+    margin: auto;
+  }
+  .caption {
+    color: #4a463e;
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+  @keyframes flip {
+    0% { transform: scaleY(1); }
+    45% { transform: scaleY(0.05); }
+    55% { transform: scaleY(0.05); }
+    100% { transform: scaleY(1); }
+  }
+  .flip-anim { animation: flip 0.5s ease; transform-origin: center; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="widget" id="widget">
+    <div class="top">
+      <span class="day" id="dayLabel">—</span>
+      <div class="top-right">
+        <span class="date" id="dateLabel">—</span>
+        <button class="notify-btn" id="notifyBtn" onclick="toggleNotify()">🔔 OFF</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="nav-row">
+      <button class="nav-arrow" onclick="changeDay(-1)">‹</button>
+      <div class="day-picker" id="dayPicker"></div>
+      <button class="nav-arrow" onclick="changeDay(1)">›</button>
+    </div>
+    <button class="today-btn" id="todayBtn" onclick="goToday()" style="display:none;">JUMP TO TODAY</button>
+    <div class="divider"></div>
+    <div class="status-label" id="statusLabel">NOW</div>
+    <div class="flap now" id="nowFlap">
+      <div class="code-row">
+        <span class="code" id="nowCode">—</span>
+      </div>
+      <div class="subject" id="nowSubject">No class right now</div>
+      <div class="meta-row">
+        <span id="nowTime">—</span>
+        <span class="room" id="nowRoom">—</span>
+      </div>
+    </div>
+    <div class="status-label" id="upNextLabel">TODAY'S SCHEDULE</div>
+    <div class="next-block" id="nextBlock"></div>
+    <div class="caption" id="caption">CLASS SCHEDULE BOARD</div>
+  </div>
+</div>
+
+<script>
+const SCHEDULE = {
+  Monday: [
+    { code: "ITA104", subject: "IT Research Design and Methodology", start: "07:30", end: "08:30", room: "CCIT-Library" },
+    { code: "ITA102", subject: "WEB Systems Technology (LAB)", start: "09:30", end: "10:30", room: "TCB-LAB2" },
+    { code: "ITA103", subject: "MULTIMEDIA (LAB)", start: "10:30", end: "11:30", room: "TCB-LAB2" },
+    { code: "ITR110", subject: "Systems Integration and Architecture 1", start: "13:30", end: "15:30", room: "NAB405" },
+    { code: "ITR109", subject: "Information Assurance and Security 1", start: "15:30", end: "16:30", room: "CC205" }
+  ],
+  Tuesday: [
+    { code: "ITA102", subject: "WEB Systems Technology", start: "08:00", end: "09:00", room: "NAB403" },
+    { code: "ITR109", subject: "Information Assurance and Security 1", start: "09:30", end: "10:30", room: "TCB4-B" },
+    { code: "ITA103", subject: "MULTIMEDIA", start: "11:30", end: "12:30", room: "TCB4-B" },
+    { code: "ITR110", subject: "Systems Integration and Architecture 1 (LAB)", start: "14:00", end: "15:30", room: "TCB-LAB2" },
+    { code: "ITA105-A", subject: "Software Engineering (LAB)", start: "15:30", end: "17:00", room: "TCB-LAB2" }
+  ],
+  Wednesday: [
+    { code: "ITA104", subject: "IT Research Design and Methodology", start: "07:30", end: "08:30", room: "CCIT-Library" },
+    { code: "ITA102", subject: "WEB Systems Technology (LAB)", start: "09:30", end: "10:30", room: "TCB-LAB2" },
+    { code: "ITA103", subject: "MULTIMEDIA (LAB)", start: "10:30", end: "11:30", room: "TCB-LAB2" },
+    { code: "ITA105-A", subject: "Software Engineering", start: "13:30", end: "15:30", room: "NAB405" },
+    { code: "ITR109", subject: "Information Assurance and Security 1", start: "15:30", end: "16:30", room: "CC205" }
+  ],
+  Thursday: [
+    { code: "ITA102", subject: "WEB Systems Technology", start: "08:00", end: "09:00", room: "NAB403" },
+    { code: "ITR109", subject: "Information Assurance and Security 1", start: "09:30", end: "10:30", room: "TCB4-B" },
+    { code: "ITA103", subject: "MULTIMEDIA", start: "11:30", end: "12:30", room: "TCB4-B" },
+    { code: "ITR110", subject: "Systems Integration and Architecture 1 (LAB)", start: "14:00", end: "15:30", room: "TCB-LAB2" },
+    { code: "ITA105-A", subject: "Software Engineering (LAB)", start: "15:30", end: "17:00", room: "TCB-LAB2" }
+  ],
+  Friday: [
+    { code: "ITA104", subject: "IT Research Design and Methodology", start: "07:30", end: "08:30", room: "CCIT-Library" },
+    { code: "ITA102", subject: "WEB Systems Technology (LAB)", start: "09:30", end: "10:30", room: "TCB-LAB2" },
+    { code: "ITA103", subject: "MULTIMEDIA (LAB)", start: "10:30", end: "11:30", room: "TCB-LAB2" },
+    { code: "ITR109", subject: "Information Assurance and Security 1", start: "15:30", end: "16:30", room: "CC205" }
+  ],
+  Saturday: [
+    { code: "ITR108", subject: "Networking 2", start: "11:00", end: "14:00", room: "CC203" },
+    { code: "ITR108", subject: "Networking 2", start: "14:30", end: "16:30", room: "CC203" }
+  ],
+  Sunday: []
+};
+
+function toMinutes(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function formatTime(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return h12 + ":" + String(m).padStart(2, "0") + period;
+}
+
+function getManilaInfo(dayOffset) {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).formatToParts(now);
+  const map = {};
+  parts.forEach(p => map[p.type] = p.value);
+  const todayUTC = new Date(Date.UTC(parseInt(map.year), parseInt(map.month) - 1, parseInt(map.day)));
+  const target = new Date(todayUTC.getTime() + dayOffset * 86400000);
+  const weekday = target.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long" });
+  const dateStr = target.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+  const minutes = dayOffset === 0 ? (parseInt(map.hour) * 60 + parseInt(map.minute)) : null;
+  return { weekday, dateStr, minutes, isToday: dayOffset === 0 };
+}
+
+function getTodayWeekdayNum() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const map = {};
+  parts.forEach(p => map[p.type] = p.value);
+  const d = new Date(Date.UTC(parseInt(map.year), parseInt(map.month) - 1, parseInt(map.day)));
+  return d.getUTCDay(); // 0=Sun..6=Sat
+}
+
+let viewOffset = 0;
+const DAY_LETTERS = [
+  { label: "M", num: 1 },
+  { label: "T", num: 2 },
+  { label: "W", num: 3 },
+  { label: "T", num: 4 },
+  { label: "F", num: 5 },
+  { label: "S", num: 6 }
+];
+
+function changeDay(delta) {
+  viewOffset += delta;
+  render();
+}
+
+function goToday() {
+  viewOffset = 0;
+  render();
+}
+
+function jumpToWeekday(targetNum) {
+  const todayNum = getTodayWeekdayNum();
+  viewOffset = targetNum - todayNum;
+  render();
+}
+
+function renderDayPicker() {
+  const todayNum = getTodayWeekdayNum();
+  const picker = document.getElementById("dayPicker");
+  const viewedNum = (todayNum + viewOffset % 7 + 7) % 7;
+  picker.innerHTML = "";
+  DAY_LETTERS.forEach(d => {
+    const btn = document.createElement("button");
+    btn.className = "day-pill" + (d.num === todayNum ? " is-today" : "") + (d.num === viewedNum ? " active" : "");
+    btn.textContent = d.label;
+    btn.onclick = () => jumpToWeekday(d.num);
+    picker.appendChild(btn);
+  });
+}
+
+let scheduledTimers = [];
+let notifyEnabled = localStorage.getItem("notifyEnabled") === "true";
+
+function updateNotifyBtn() {
+  const btn = document.getElementById("notifyBtn");
+  if (notifyEnabled && Notification.permission === "granted") {
+    btn.textContent = "🔔 ON";
+    btn.classList.add("on");
+  } else {
+    btn.textContent = "🔔 OFF";
+    btn.classList.remove("on");
+  }
+}
+
+function toggleNotify() {
+  if (!("Notification" in window)) {
+    alert("Notifications aren't supported in this browser.");
+    return;
+  }
+  if (notifyEnabled) {
+    notifyEnabled = false;
+    localStorage.setItem("notifyEnabled", "false");
+    scheduledTimers.forEach(t => clearTimeout(t));
+    scheduledTimers = [];
+    updateNotifyBtn();
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    if (perm === "granted") {
+      notifyEnabled = true;
+      localStorage.setItem("notifyEnabled", "true");
+      scheduleNotifications();
+    } else {
+      alert("Notifications were blocked. Enable them in your browser's site settings to use this.");
+    }
+    updateNotifyBtn();
+  });
+}
+
+function scheduleNotifications() {
+  scheduledTimers.forEach(t => clearTimeout(t));
+  scheduledTimers = [];
+  if (!notifyEnabled || Notification.permission !== "granted") return;
+
+  const { weekday, minutes } = getManilaInfo(0);
+  const classes = SCHEDULE[weekday] || [];
+  const nowMs = Date.now();
+
+  classes.forEach(c => {
+    const startMin = toMinutes(c.start);
+    [{ offset: 5, label: "starts in 5 min" }, { offset: 0, label: "is starting now" }].forEach(({ offset, label }) => {
+      const triggerMin = startMin - offset;
+      if (triggerMin > minutes) {
+        const delayMs = (triggerMin - minutes) * 60000 - (nowMs % 60000);
+        const t = setTimeout(() => {
+          new Notification(c.code + " " + label, {
+            body: c.subject + " · " + c.room,
+            tag: c.code + c.start + offset
+          });
+        }, Math.max(delayMs, 1000));
+        scheduledTimers.push(t);
+      }
+    });
+  });
+}
+
+
+function render() {
+  const { weekday, dateStr, minutes, isToday } = getManilaInfo(viewOffset);
+  const classes = SCHEDULE[weekday] || [];
+  const nowFlap = document.getElementById("nowFlap");
+
+  document.getElementById("dayLabel").textContent = weekday.toUpperCase();
+  document.getElementById("dateLabel").textContent = dateStr + (isToday ? " · TODAY" : "");
+  document.getElementById("todayBtn").style.display = isToday ? "none" : "block";
+  renderDayPicker();
+
+  let current = null;
+  let next = null;
+  if (isToday) {
+    for (const c of classes) {
+      const s = toMinutes(c.start);
+      const e = toMinutes(c.end);
+      if (minutes >= s && minutes < e) {
+        current = c;
+      } else if (s > minutes && !next) {
+        next = c;
+      }
+    }
+  } else if (classes.length > 0) {
+    next = classes[0];
+  }
+
+  const statusLabel = document.getElementById("statusLabel");
+  const upNextLabel = document.getElementById("upNextLabel");
+  const nextBlock = document.getElementById("nextBlock");
+
+  if (classes.length === 0) {
+    statusLabel.textContent = isToday ? "TODAY" : weekday.toUpperCase();
+    document.getElementById("nowCode").textContent = "NO CLASS";
+    document.getElementById("nowSubject").textContent = "No classes scheduled";
+    document.getElementById("nowTime").textContent = "—";
+    document.getElementById("nowRoom").textContent = "—";
+  } else if (current) {
+    statusLabel.textContent = "NOW";
+    document.getElementById("nowCode").textContent = current.code;
+    document.getElementById("nowSubject").textContent = current.subject;
+    document.getElementById("nowTime").textContent = formatTime(current.start) + " – " + formatTime(current.end);
+    document.getElementById("nowRoom").textContent = current.room;
+  } else if (next) {
+    statusLabel.textContent = isToday ? "UP NEXT" : "FIRST CLASS";
+    document.getElementById("nowCode").textContent = next.code;
+    document.getElementById("nowSubject").textContent = next.subject;
+    document.getElementById("nowTime").textContent = formatTime(next.start) + " – " + formatTime(next.end);
+    document.getElementById("nowRoom").textContent = next.room;
+  } else {
+    statusLabel.textContent = "TODAY";
+    document.getElementById("nowCode").textContent = "DONE";
+    document.getElementById("nowSubject").textContent = "No more classes today";
+    document.getElementById("nowTime").textContent = "—";
+    document.getElementById("nowRoom").textContent = "—";
+  }
+
+  upNextLabel.textContent = (isToday ? "TODAY'S SCHEDULE" : weekday.toUpperCase() + "'S SCHEDULE") + " (" + classes.length + ")";
+  nextBlock.innerHTML = "";
+  classes.forEach(c => {
+    const s = toMinutes(c.start);
+    const e = toMinutes(c.end);
+    const isNow = isToday && minutes >= s && minutes < e;
+    const isDone = isToday && minutes >= e;
+    const row = document.createElement("div");
+    row.className = "next-item" + (isNow ? " is-now" : "") + (isDone ? " is-done" : "");
+    row.innerHTML =
+      '<span class="t">' + formatTime(c.start) + '</span>' +
+      '<span class="c">' + c.code + '</span>' +
+      '<span class="s">' + c.subject + '</span>' +
+      '<span class="r">' + c.room + '</span>';
+    nextBlock.appendChild(row);
+  });
+
+  nowFlap.classList.remove("flip-anim");
+  void nowFlap.offsetWidth;
+  nowFlap.classList.add("flip-anim");
+}
+
+render();
+updateNotifyBtn();
+if (notifyEnabled && Notification.permission === "granted") scheduleNotifications();
+setInterval(render, 30000);
+setInterval(() => { if (notifyEnabled) scheduleNotifications(); }, 3600000);
+</script>
+</body>
+</html>
